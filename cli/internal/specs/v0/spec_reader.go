@@ -2,6 +2,7 @@ package specs
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"math/rand"
 	"os"
@@ -11,6 +12,10 @@ import (
 
 	"github.com/ghodss/yaml"
 	"golang.org/x/exp/slices"
+)
+
+const (
+	Base64Prefix = "base64_"
 )
 
 type SpecReader struct {
@@ -51,6 +56,17 @@ func expandEnv(cfg []byte) ([]byte, error) {
 			expandErr = fmt.Errorf("env variable %s not found", envVar)
 			return nil
 		}
+
+		if strings.HasPrefix(content, Base64Prefix) {
+			encodedValue := strings.TrimPrefix(content, Base64Prefix)
+			decodedValue, err := base64.StdEncoding.DecodeString(encodedValue)
+			if err != nil {
+				fmt.Println("Error decoding Base64 value:", err)
+				return nil
+			}
+			return decodedValue
+		}
+
 		return []byte(content)
 	})
 

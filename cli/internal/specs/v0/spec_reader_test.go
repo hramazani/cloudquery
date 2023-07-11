@@ -2,6 +2,8 @@ package specs
 
 import (
 	"bytes"
+	"encoding/base64"
+	"fmt"
 	"os"
 	"path"
 	"runtime"
@@ -330,5 +332,45 @@ spec:
 	_, err = expandEnv(badCfg)
 	if err == nil {
 		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestExpandEnvMultiline(t *testing.T) {
+	value := `    aws_debug: false
+    org:
+      admin_account:
+      member_role_name: cloudquery-ro
+    regions:
+      - '*'`
+	encodedValue := base64.StdEncoding.EncodeToString([]byte(value))
+	prefixedValue := Base64Prefix + encodedValue
+
+	os.Setenv("PLUGIN_SPEC", prefixedValue)
+	cfg := []byte(`kind: source
+spec:
+  name: test
+  version: v1.0.0
+  spec:
+${PLUGIN_SPEC}`)
+	expectedCfg := []byte(`kind: source
+spec:
+  name: test
+  version: v1.0.0
+  spec:
+    aws_debug: false
+    org:
+      admin_account:
+      member_role_name: cloudquery-ro
+    regions:
+      - '*'`)
+	expandedCfg, err := expandEnv(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(expandedCfg, expectedCfg) {
+		fmt.Printf("got:\n%+v\n", string(expandedCfg))
+		fmt.Printf("want:\n%+v\n", string(expectedCfg))
+		t.Fatal("got and want do not match")
 	}
 }
